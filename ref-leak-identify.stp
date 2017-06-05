@@ -1,0 +1,139 @@
+/*
+ * This is system tap script used to analyze reference leaks in glusterfs
+ * by probing referencing/dereferencing functions, putting a count on the
+ * number of times they are triggered, storing their traces if the count is 
+ * non-zero and printing them periodically.
+ */
+
+global count[600000]
+global traces_ref[80000]
+global traces_unref[80000]
+global ptr
+global round
+global i
+global j
+global status
+
+function dump()
+{
+        //delete all data structures
+        delete count
+        delete traces_ref
+	delete traces_unref
+	i = 0
+	j = 0
+}
+
+function aggregate()
+{
+        /* calculate net ref count */
+        printf("Net ref counts for each ptr : \n")
+        foreach (c in count) {
+       	        if (count[c] != 0) {
+                        status = 1
+                }
+
+                printf("%x : %d\n", c, count[c])
+        }
+
+        if ( status == 0 ) {
+                printf("%d\n",status)
+                printf("Therefore, No Leaks \n")
+                return 1
+        }
+
+        /* printing output in sorted order of ptr */
+        printf("\nRef Traces :\n")
+        foreach([index1-, index2] in traces_ref) {
+                printf("\nptr : %x\n",index1)
+                printf("%s\n", traces_ref[index1, index2])
+	}
+
+        printf("\n------\n")
+        printf("\nUnref traces\n")
+        
+        foreach([index1-, index2] in traces_unref){
+	        printf("\nptr : %x\n",index1)
+                printf("%s\n", traces_unref[index1, index2])
+	}
+
+        dump()
+
+}
+
+function cast_attribute(ptr:long)
+{
+        /* casting refcount attribute of different data structures */
+        if( @1 == "dict_ref" || @2 == "dict_unref" ) {
+                return @cast(ptr, "_dict",
+                "/usr/local/lib/libglusterfs.so.0")->refcount
+        } else if( @1 == "__inode_ref" || @2 == "__inode_unref" ) {
+                return @cast(ptr, "_inode",
+                "/usr/local/lib/libglusterfs.so.0")->refcount
+        } else if( @1 == "__fd_ref" || @2 == "__fd_unref" ){
+                return @cast(ptr, "_fd",
+                 "/usr/local/lib/libglusterfs.so.0")->refcount
+         }
+}
+
+probe process("/usr/local/sbin/gluster*")
+.library("/usr/local/lib/libglusterfs.so.0").function(@1)
+{
+        /* probing referencing function */
+
+        if(@1=="dict_ref") {
+                ptr = $this
+         } else if(@1=="__inode_ref") {
+                ptr = $inode
+         } else if(@1=="__fd_ref") {
+                ptr = $fd
+         }
+
+         /* count traces the refcount from referencing function */
+        count[ptr] = cast_attribute(ptr) + 1
+
+        /* traces_ref stores ref backtraces */
+        traces_ref[ptr, i] = sprint_ubacktrace()
+        i++
+}
+
+probe process("/usr/local/sbin/glusterfs")
+.library("/usr/local/lib/libglusterfs.so.0").function(@2)
+{
+        /* probing dereferencing function */
+
+        if(@2 == "dict_unref") {
+                ptr = $this
+        } else if(@2== "__inode_unref") {
+                ptr = $inode
+        } else if(@2 == "__fd_unref") {
+                ptr = $fd
+        }
+
+        /* count traces the refcount from dereferencing function */
+        count[ptr] = cast_attribute(ptr) - 1
+
+        /* traces_unref stores unref backtraces */
+        traces_unref[ptr, j] = sprint_ubacktrace()
+        j++
+
+        /* deleting all the  traces and their count value if count
+         * is zero. */
+        if(count[ptr] == 0){
+                delete traces_ref[ptr,*]
+                delete traces_unref[ptr,*]
+                delete count[ptr]
+         }
+}
+
+probe timer.s($3){
+        /* calcultaing and printing count peridoically. */
+	
+        printf("\nROUND : %d\n", round)
+	aggregate()
+	
+        status = 0
+
+	printf("\n-----------\n")
+	round++
+}
