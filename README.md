@@ -6,11 +6,12 @@ Most users should have no need for these tools, they are only needed for
 detailed troubleshooting, developer debugging or verification.
 
 
-**This `README.md` is a placeholder and should get updated when a tool gets
-added. Replace the example below with a more suitable description of the first
-tool that gets added.**
+## gfapi-load-volfile
 
-## Blurb Script
+In order to detect memory leaks in a small environment where little xlators are
+loaded and limited functions are called, `gfapi-load-volfile` can be used. This
+small test application uses `libgfapi.so` to initialize and destroy a graph of
+xlators. Combined with Valgrind, it is a very useful tool for detecting memory
+leaks. More details about the usage of the tool and accompanied scripts are in
+the [README.md](gfapi-load-volfile/README.md).
 
-The Blurb Script can be used to visualize the Blurb of a Gluster Volume. More
-details are explained in the [blurb/README.md](Blusb Script documentation).

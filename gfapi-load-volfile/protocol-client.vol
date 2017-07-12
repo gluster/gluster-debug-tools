@@ -1,0 +1,14 @@
+#
+# This .vol file expects that there is
+#
+#  1. GlusterD listening on 127.0.0.1
+#  2. a volume that provides a brick on /bricks/one-brick/data
+#  3. the volume with the brick has been started
+#
+volume test
+    type protocol/client
+    option remote-host 127.0.0.1
+    option remote-subvolume /bricks/one-brick/data
+    option transport-type socket
+end-volume
+

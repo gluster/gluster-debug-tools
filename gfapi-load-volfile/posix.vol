@@ -1,0 +1,14 @@
+#
+# POSIX requires running as root for testing the validity of the brick and
+# testing of xattr functionality.
+#
+#   # mkdir -p /bricks/gfapi-load-volfile
+#   # setfattr -n trusted.glusterfs.volume-id -v 0x6f2da57432e644b8bc42e426ec0e000a /bricks/gfapi-load-volfile
+#
+
+volume posix
+    type storage/posix
+    option volume-id 6f2da574-32e6-44b8-bc42-e426ec0e000a
+    option directory /bricks/gfapi-load-volfile
+end-volume
+
